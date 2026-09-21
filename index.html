@@ -137,14 +137,13 @@
   }
   .cal-dow { text-align: center; font-size: 11px; color: var(--muted); padding-bottom: 4px; }
   .cal-day {
-    aspect-ratio: 1;
     border-radius: 8px;
     border: 1px solid var(--border);
     padding: 4px;
     font-size: 12px;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    gap: 1px;
     cursor: pointer;
     background: #fafbfc;
     min-height: 46px;
@@ -153,7 +152,7 @@
   .cal-day.today { border-color: var(--accent); }
   .cal-day.has-entry { background: #eaf1ff; border-color: #c7d9fb; }
   .cal-day .d-num { font-weight: 600; }
-  .cal-day .d-hours { font-size: 10px; color: var(--accent-dark); font-weight: 600; }
+  .cal-day .d-hours { font-size: 9px; line-height: 1.25; color: var(--accent-dark); font-weight: 600; word-break: break-word; }
   .cal-day.selected { outline: 2px solid var(--accent); }
 
   .day-detail-list { display: flex; flex-direction: column; gap: 8px; }
@@ -488,6 +487,23 @@ function entriesForDay(dStr) {
   });
 }
 
+function fmtTime(d) {
+  return d.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+}
+
+// Etykieta na kafelku dnia: dla dnia rozpoczęcia "od HH:MM", dla dnia
+// zakończenia "do HH:MM", dla dnia w środku wielodniowego wyjazdu "cały
+// dzień", a dla wpisu jednodniowego pełny zakres "HH:MM–HH:MM".
+function dayLabelForEntry(w, dStr) {
+  const s = w.start.toDate(), e = w.koniec.toDate();
+  const startsThisDay = dateStr(s) === dStr;
+  const endsThisDay = dateStr(e) === dStr;
+  if (startsThisDay && endsThisDay) return `${fmtTime(s)}–${fmtTime(e)}`;
+  if (startsThisDay) return `od ${fmtTime(s)}`;
+  if (endsThisDay) return `do ${fmtTime(e)}`;
+  return 'cały dzień';
+}
+
 function renderCalendar() {
   document.getElementById('monthLabel').textContent = `${MONTH_NAMES[calMonth]} ${calYear}`;
   const dowEl = document.getElementById('calDow');
@@ -504,7 +520,7 @@ function renderCalendar() {
     const dStr = dateStr(d);
     const isOut = d.getMonth() !== calMonth;
     const entries = entriesForDay(dStr);
-    const hours = entries.reduce((sum, w) => sum + (w.godziny || 0), 0);
+    const dayLabels = entries.map(w => dayLabelForEntry(w, dStr));
     const classes = ['cal-day'];
     if (isOut) classes.push('out');
     if (dStr === todayStr) classes.push('today');
@@ -512,7 +528,7 @@ function renderCalendar() {
     if (dStr === selectedDayStr) classes.push('selected');
     html += `<div class="${classes.join(' ')}" data-date="${dStr}">
       <div class="d-num">${d.getDate()}</div>
-      ${entries.length ? `<div class="d-hours">${hours}h</div>` : ''}
+      ${dayLabels.map(l => `<div class="d-hours">${l}</div>`).join('')}
     </div>`;
   }
   document.getElementById('calGrid').innerHTML = html;
