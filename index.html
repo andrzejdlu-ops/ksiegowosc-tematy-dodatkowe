@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Księgowość tematów dodatkowych</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --text: #1c1e21;
+    --muted: #6b7280;
+    --border: #e3e5e8;
+    --accent: #2563eb;
+    --accent-dark: #1d4ed8;
+    --danger: #dc2626;
+    --danger-dark: #b91c1c;
+    --ok: #16a34a;
+    --warn: #f59e0b;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  #app { max-width: 860px; margin: 0 auto; padding: 12px 12px 60px; }
+  .hidden { display: none !important; }
+
+  /* --- Login --- */
+  #loginScreen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .login-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 32px 28px;
+    width: 100%;
+    max-width: 360px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  }
+  .login-card h1 { font-size: 20px; margin: 0 0 20px; text-align: center; }
+
+  /* --- Generic form elements --- */
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  input, select, textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fff;
+    color: var(--text);
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover { background: var(--danger-dark); }
+  .btn-secondary { background: #eef0f3; color: var(--text); }
+  .btn-secondary:hover { background: #e0e3e8; }
+  .btn-block { width: 100%; margin-top: 18px; }
+  .btn-sm { padding: 6px 10px; font-size: 13px; }
+
+  .error-msg { color: var(--danger); font-size: 13px; margin-top: 10px; min-height: 1em; }
+  .hint-ok { color: var(--ok); }
+  .hint-bad { color: var(--danger); }
+
+  /* --- Header / nav --- */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 4px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  header h1 { font-size: 18px; margin: 0; }
+  .who { font-size: 13px; color: var(--muted); }
+  nav {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  nav button {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-weight: 500;
+  }
+  nav button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  /* --- Balance banner --- */
+  .balance {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .balance .amount { font-size: 26px; font-weight: 700; color: var(--accent); }
+  .balance .label { font-size: 13px; color: var(--muted); }
+
+  /* --- Calendar --- */
+  .cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .cal-header .month-label { font-weight: 600; font-size: 16px; }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .cal-dow { text-align: center; font-size: 11px; color: var(--muted); padding-bottom: 4px; }
+  .cal-day {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    padding: 4px;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    cursor: pointer;
+    background: #fafbfc;
+    min-height: 46px;
+  }
+  .cal-day.out { opacity: 0.35; }
+  .cal-day.today { border-color: var(--accent); }
+  .cal-day.has-entry { background: #eaf1ff; border-color: #c7d9fb; }
+  .cal-day .d-num { font-weight: 600; }
+  .cal-day .d-hours { font-size: 10px; color: var(--accent-dark); font-weight: 600; }
+  .cal-day.selected { outline: 2px solid var(--accent); }
+
+  .day-detail-list { display: flex; flex-direction: column; gap: 8px; }
+  .entry-row {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .entry-row .opis { font-weight: 500; }
+  .entry-row .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .entry-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+  /* --- Table (Rozliczenia) --- */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  td.num { text-align: right; }
+  .checkbox-cell { text-align: center; }
+  input[type="checkbox"] { width: 20px; height: 20px; }
+
+  /* --- Modal --- */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    z-index: 100;
+  }
+  .modal {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 20px;
+    width: 100%;
+    max-width: 420px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal h2 { margin: 0 0 4px; font-size: 17px; }
+  .computed-box {
+    margin-top: 12px;
+    padding: 10px 12px;
+    background: #f0f4ff;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .computed-box b { color: var(--accent-dark); }
+  .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .modal-actions button { flex: 1; }
+  .close-x {
+    position: absolute; top: 12px; right: 14px;
+    background: none; color: var(--muted); font-size: 20px; padding: 0;
+  }
+  .modal { position: relative; }
+
+  /* --- Users panel --- */
+  .user-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .user-row:last-child { border-bottom: none; }
+  .user-row .name { font-weight: 500; }
+  .user-row .email { font-size: 12px; color: var(--muted); }
+  .pw-rules { font-size: 12px; margin-top: 6px; line-height: 1.5; }
+  .pw-rules div { color: var(--muted); }
+
+  .empty-msg { color: var(--muted); font-size: 14px; text-align: center; padding: 20px 0; }
+  .top-actions { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-card">
+    <h1>Księgowość tematów dodatkowych</h1>
+    <form id="loginForm">
+      <label>E-mail</label>
+      <input type="email" id="loginEmail" required autocomplete="username">
+      <label>Hasło</label>
+      <input type="password" id="loginPassword" required autocomplete="current-password">
+      <button type="submit" class="btn-primary btn-block">Zaloguj</button>
+      <div class="error-msg" id="loginError"></div>
+    </form>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <h1>Księgowość tematów dodatkowych</h1>
+    <div>
+      <span class="who" id="whoAmI"></span>
+      <button class="btn-secondary btn-sm" id="logoutBtn">Wyloguj</button>
+    </div>
+  </header>
+
+  <div class="card balance">
+    <div>
+      <div class="label">Do wypłaty (wszystkie niewypłacone miesiące)</div>
+      <div class="amount" id="balanceAmount">0,00 zł</div>
+    </div>
+  </div>
+
+  <nav>
+    <button data-tab="kalendarz" class="active">Kalendarz</button>
+    <button data-tab="rozliczenia">Rozliczenia</button>
+    <button data-tab="uzytkownicy">Użytkownicy</button>
+  </nav>
+
+  <section id="tab-kalendarz">
+    <div class="top-actions">
+      <button class="btn-primary btn-sm" id="addEntryBtn">+ Dodaj wyjazd/zadanie</button>
+    </div>
+    <div class="card">
+      <div class="cal-header">
+        <button class="btn-secondary btn-sm" id="prevMonthBtn">‹</button>
+        <div class="month-label" id="monthLabel"></div>
+        <button class="btn-secondary btn-sm" id="nextMonthBtn">›</button>
+      </div>
+      <div class="cal-grid" id="calDow"></div>
+      <div class="cal-grid" id="calGrid" style="margin-top:4px;"></div>
+    </div>
+    <div class="card" id="dayDetailCard" style="display:none;">
+      <div id="dayDetailTitle" style="font-weight:600; margin-bottom:10px;"></div>
+      <div class="day-detail-list" id="dayDetailList"></div>
+    </div>
+  </section>
+
+  <section id="tab-rozliczenia" class="hidden">
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Miesiąc</th><th class="num">Godziny</th><th class="num">Kwota</th><th class="checkbox-cell">Wypłacono</th></tr>
+        </thead>
+        <tbody id="miesiaceTableBody"></tbody>
+      </table>
+      <div class="empty-msg hidden" id="rozliczeniaEmpty">Brak wpisów.</div>
+    </div>
+  </section>
+
+  <section id="tab-uzytkownicy" class="hidden">
+    <div class="card">
+      <div style="font-weight:600; margin-bottom:8px;">Użytkownicy</div>
+      <div id="usersList"></div>
+    </div>
+    <div class="card">
+      <div style="font-weight:600; margin-bottom:8px;">Dodaj użytkownika</div>
+      <form id="addUserForm">
+        <label>Nazwa</label>
+        <input type="text" id="newUserName" required>
+        <label>E-mail</label>
+        <input type="email" id="newUserEmail" required>
+        <label>Hasło startowe</label>
+        <input type="password" id="newUserPassword" required>
+        <div class="pw-rules" id="pwRules">
+          <div id="pw-len">✗ min. 10 znaków</div>
+          <div id="pw-upper">✗ wielka litera</div>
+          <div id="pw-digit">✗ cyfra</div>
+          <div id="pw-special">✗ znak specjalny</div>
+        </div>
+        <button type="submit" class="btn-primary btn-block">Dodaj użytkownika</button>
+        <div class="error-msg" id="addUserError"></div>
+      </form>
+    </div>
+  </section>
+</div>
+
+<!-- Modal: dodaj/edytuj wpis -->
+<div class="modal-backdrop hidden" id="entryModalBackdrop">
+  <div class="modal">
+    <button class="close-x" id="entryModalClose">×</button>
+    <h2 id="entryModalTitle">Dodaj wyjazd/zadanie</h2>
+    <form id="entryForm">
+      <label>Początek</label>
+      <input type="datetime-local" id="entryStart" required>
+      <label>Koniec</label>
+      <input type="datetime-local" id="entryEnd" required>
+      <label>Opis wykonywanych prac</label>
+      <textarea id="entryOpis" required></textarea>
+      <label>Stawka godzinowa (zł/h)</label>
+      <input type="number" id="entryStawka" step="0.01" min="0.01" required>
+      <div class="computed-box" id="entryComputed">Uzupełnij daty i stawkę, aby zobaczyć liczbę godzin i kwotę.</div>
+      <div class="error-msg" id="entryError"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="entryDeleteBtn" style="display:none;">Usuń</button>
+        <button type="submit" class="btn-primary" id="entrySaveBtn">Zapisz</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-functions-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyC49EyJNcxOKnZcuQl5Po9ijqclcd5-T7w",
+  authDomain: "ksiegowosc-tematy-dodatkowe.firebaseapp.com",
+  projectId: "ksiegowosc-tematy-dodatkowe",
+  storageBucket: "ksiegowosc-tematy-dodatkowe.firebasestorage.app",
+  messagingSenderId: "17919545302",
+  appId: "1:17919545302:web:39f152882f52e8d5c11e77"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const functionsApi = firebase.app().functions('europe-west1');
+
+// ---------- helpers ----------
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtMoney(n) {
+  return (Math.round((n || 0) * 100) / 100).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł';
+}
+function dateStr(d) {
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+function monthKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+function toLocalInputValue(d) {
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+  const hh = String(d.getHours()).padStart(2,'0'), mi = String(d.getMinutes()).padStart(2,'0');
+  return `${y}-${m}-${dd}T${hh}:${mi}`;
+}
+const MONTH_NAMES = ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+const DOW_NAMES = ['Pon','Wt','Śr','Czw','Pt','Sob','Nie'];
+
+// ---------- state ----------
+let currentUser = null;
+let wpisyCache = [];      // wszystkie wpisy zalogowanego użytkownika
+let podsumowaniaCache = {}; // miesiac -> {wyplacono}
+let usersCache = [];
+let unsubWpisy = null, unsubPodsumowania = null, unsubUsers = null;
+let calYear, calMonth; // 0-11
+let selectedDayStr = null;
+let editingEntryId = null;
+
+// ---------- auth ----------
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '';
+  try {
+    await auth.signInWithEmailAndPassword(email, password);
+  } catch (err) {
+    errEl.textContent = 'Nieprawidłowy e-mail lub hasło.';
+  }
+});
+document.getElementById('logoutBtn').addEventListener('click', () => auth.signOut());
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    currentUser = user;
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('whoAmI').textContent = user.email;
+    const now = new Date();
+    calYear = now.getFullYear(); calMonth = now.getMonth();
+    startListeners();
+  } else {
+    currentUser = null;
+    if (unsubWpisy) unsubWpisy();
+    if (unsubPodsumowania) unsubPodsumowania();
+    if (unsubUsers) unsubUsers();
+    wpisyCache = []; podsumowaniaCache = {}; usersCache = [];
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('loginScreen').classList.remove('hidden');
+  }
+});
+
+function startListeners() {
+  unsubWpisy = db.collection('wpisy').where('uid', '==', currentUser.uid)
+    .onSnapshot(snap => {
+      wpisyCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderCalendar();
+      renderRozliczenia();
+      if (selectedDayStr) renderDayDetail(selectedDayStr);
+    }, err => console.error('wpisy listener', err));
+
+  unsubPodsumowania = db.collection('podsumowania').where('uid', '==', currentUser.uid)
+    .onSnapshot(snap => {
+      podsumowaniaCache = {};
+      snap.docs.forEach(d => { podsumowaniaCache[d.data().miesiac] = d.data(); });
+      renderRozliczenia();
+    }, err => console.error('podsumowania listener', err));
+
+  unsubUsers = db.collection('users').onSnapshot(snap => {
+    usersCache = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+    renderUsers();
+  }, err => console.error('users listener', err));
+}
+
+// ---------- tabs ----------
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ['kalendarz', 'rozliczenia', 'uzytkownicy'].forEach(t => {
+      document.getElementById('tab-' + t).classList.toggle('hidden', t !== btn.dataset.tab);
+    });
+  });
+});
+
+// ---------- calendar ----------
+function entriesForDay(dStr) {
+  const dayStart = new Date(dStr + 'T00:00:00');
+  const dayEnd = new Date(dStr + 'T23:59:59.999');
+  return wpisyCache.filter(w => {
+    const s = w.start.toDate(), e = w.koniec.toDate();
+    return s <= dayEnd && e >= dayStart;
+  });
+}
+
+function renderCalendar() {
+  document.getElementById('monthLabel').textContent = `${MONTH_NAMES[calMonth]} ${calYear}`;
+  const dowEl = document.getElementById('calDow');
+  dowEl.innerHTML = DOW_NAMES.map(n => `<div class="cal-dow">${n}</div>`).join('');
+
+  const firstOfMonth = new Date(calYear, calMonth, 1);
+  const startOffset = (firstOfMonth.getDay() + 6) % 7; // Monday = 0
+  const gridStart = new Date(calYear, calMonth, 1 - startOffset);
+
+  const todayStr = dateStr(new Date());
+  let html = '';
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
+    const dStr = dateStr(d);
+    const isOut = d.getMonth() !== calMonth;
+    const entries = entriesForDay(dStr);
+    const hours = entries.reduce((sum, w) => sum + (w.godziny || 0), 0);
+    const classes = ['cal-day'];
+    if (isOut) classes.push('out');
+    if (dStr === todayStr) classes.push('today');
+    if (entries.length) classes.push('has-entry');
+    if (dStr === selectedDayStr) classes.push('selected');
+    html += `<div class="${classes.join(' ')}" data-date="${dStr}">
+      <div class="d-num">${d.getDate()}</div>
+      ${entries.length ? `<div class="d-hours">${hours}h</div>` : ''}
+    </div>`;
+  }
+  document.getElementById('calGrid').innerHTML = html;
+  document.querySelectorAll('.cal-day').forEach(el => {
+    el.addEventListener('click', () => {
+      selectedDayStr = el.dataset.date;
+      renderCalendar();
+      renderDayDetail(selectedDayStr);
+    });
+  });
+}
+
+function renderDayDetail(dStr) {
+  const card = document.getElementById('dayDetailCard');
+  const entries = entriesForDay(dStr);
+  if (!entries.length) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+  const d = new Date(dStr + 'T00:00:00');
+  document.getElementById('dayDetailTitle').textContent = d.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  document.getElementById('dayDetailList').innerHTML = entries.map(w => {
+    const s = w.start.toDate(), e = w.koniec.toDate();
+    const fmt = dt => dt.toLocaleString('pl-PL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return `<div class="entry-row">
+      <div>
+        <div class="opis">${esc(w.opis)}</div>
+        <div class="meta">${fmt(s)} → ${fmt(e)} · ${w.godziny} h × ${fmtMoney(w.stawka)}/h = ${fmtMoney(w.kwota)}</div>
+      </div>
+      <div class="entry-actions">
+        <button class="btn-secondary btn-sm" data-edit="${w.id}">Edytuj</button>
+      </div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('[data-edit]').forEach(btn => {
+    btn.addEventListener('click', () => openEntryModal(btn.dataset.edit));
+  });
+}
+
+document.getElementById('prevMonthBtn').addEventListener('click', () => {
+  calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+});
+document.getElementById('nextMonthBtn').addEventListener('click', () => {
+  calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+});
+
+// ---------- entry modal ----------
+function computeHoursAndAmount() {
+  const startVal = document.getElementById('entryStart').value;
+  const endVal = document.getElementById('entryEnd').value;
+  const stawka = parseFloat(document.getElementById('entryStawka').value);
+  const box = document.getElementById('entryComputed');
+  if (!startVal || !endVal || !stawka || stawka <= 0) {
+    box.innerHTML = 'Uzupełnij daty i stawkę, aby zobaczyć liczbę godzin i kwotę.';
+    return null;
+  }
+  const start = new Date(startVal), end = new Date(endVal);
+  const hours = (end - start) / 3600000;
+  if (hours <= 0) {
+    box.innerHTML = '<span class="hint-bad">Koniec musi być po początku.</span>';
+    return null;
+  }
+  const hoursRounded = Math.round(hours * 100) / 100;
+  const amount = hoursRounded * stawka;
+  box.innerHTML = `Liczba godzin: <b>${hoursRounded} h</b> · Kwota: <b>${fmtMoney(amount)}</b>`;
+  return { hours: hoursRounded, amount, start, end };
+}
+['entryStart', 'entryEnd', 'entryStawka'].forEach(id => {
+  document.getElementById(id).addEventListener('input', computeHoursAndAmount);
+});
+
+function openEntryModal(entryId) {
+  editingEntryId = entryId || null;
+  const form = document.getElementById('entryForm');
+  form.reset();
+  document.getElementById('entryError').textContent = '';
+  document.getElementById('entryComputed').innerHTML = 'Uzupełnij daty i stawkę, aby zobaczyć liczbę godzin i kwotę.';
+  const deleteBtn = document.getElementById('entryDeleteBtn');
+
+  if (editingEntryId) {
+    const w = wpisyCache.find(x => x.id === editingEntryId);
+    document.getElementById('entryModalTitle').textContent = 'Edytuj wpis';
+    document.getElementById('entryStart').value = toLocalInputValue(w.start.toDate());
+    document.getElementById('entryEnd').value = toLocalInputValue(w.koniec.toDate());
+    document.getElementById('entryOpis').value = w.opis;
+    document.getElementById('entryStawka').value = w.stawka;
+    computeHoursAndAmount();
+    deleteBtn.style.display = '';
+  } else {
+    document.getElementById('entryModalTitle').textContent = 'Dodaj wyjazd/zadanie';
+    deleteBtn.style.display = 'none';
+  }
+  document.getElementById('entryModalBackdrop').classList.remove('hidden');
+}
+function closeEntryModal() {
+  document.getElementById('entryModalBackdrop').classList.add('hidden');
+  editingEntryId = null;
+}
+document.getElementById('addEntryBtn').addEventListener('click', () => openEntryModal(null));
+document.getElementById('entryModalClose').addEventListener('click', closeEntryModal);
+
+document.getElementById('entryForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const computed = computeHoursAndAmount();
+  const errEl = document.getElementById('entryError');
+  if (!computed) { errEl.textContent = 'Sprawdź wprowadzone dane.'; return; }
+  const opis = document.getElementById('entryOpis').value.trim();
+  if (!opis) { errEl.textContent = 'Podaj opis wykonywanych prac.'; return; }
+  const stawka = parseFloat(document.getElementById('entryStawka').value);
+
+  const payload = {
+    uid: currentUser.uid,
+    start: firebase.firestore.Timestamp.fromDate(computed.start),
+    koniec: firebase.firestore.Timestamp.fromDate(computed.end),
+    miesiac: monthKey(computed.start),
+    opis,
+    godziny: computed.hours,
+    stawka,
+    kwota: Math.round(computed.amount * 100) / 100,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+
+  try {
+    if (editingEntryId) {
+      await db.collection('wpisy').doc(editingEntryId).update(payload);
+    } else {
+      payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection('wpisy').add(payload);
+    }
+    closeEntryModal();
+  } catch (err) {
+    errEl.textContent = 'Nie udało się zapisać wpisu.';
+    console.error(err);
+  }
+});
+
+document.getElementById('entryDeleteBtn').addEventListener('click', async () => {
+  if (!editingEntryId) return;
+  if (!confirm('Usunąć ten wpis?')) return;
+  try {
+    await db.collection('wpisy').doc(editingEntryId).delete();
+    closeEntryModal();
+  } catch (err) {
+    document.getElementById('entryError').textContent = 'Nie udało się usunąć wpisu.';
+  }
+});
+
+// ---------- rozliczenia ----------
+function renderRozliczenia() {
+  const months = {};
+  wpisyCache.forEach(w => {
+    if (!months[w.miesiac]) months[w.miesiac] = { godziny: 0, kwota: 0 };
+    months[w.miesiac].godziny += w.godziny || 0;
+    months[w.miesiac].kwota += w.kwota || 0;
+  });
+  const keys = Object.keys(months).sort().reverse();
+  document.getElementById('rozliczeniaEmpty').classList.toggle('hidden', keys.length > 0);
+
+  let balance = 0;
+  const rows = keys.map(m => {
+    const wyplacono = !!(podsumowaniaCache[m] && podsumowaniaCache[m].wyplacono);
+    if (!wyplacono) balance += months[m].kwota;
+    return `<tr>
+      <td>${m}</td>
+      <td class="num">${Math.round(months[m].godziny * 100) / 100} h</td>
+      <td class="num">${fmtMoney(months[m].kwota)}</td>
+      <td class="checkbox-cell"><input type="checkbox" data-month="${m}" ${wyplacono ? 'checked' : ''}></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('miesiaceTableBody').innerHTML = rows;
+  document.getElementById('balanceAmount').textContent = fmtMoney(balance);
+
+  document.querySelectorAll('#miesiaceTableBody input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', async () => {
+      const m = cb.dataset.month;
+      const docId = `${currentUser.uid}_${m}`;
+      try {
+        await db.collection('podsumowania').doc(docId).set({
+          uid: currentUser.uid,
+          miesiac: m,
+          wyplacono: cb.checked,
+          wyplaconoData: cb.checked ? firebase.firestore.FieldValue.serverTimestamp() : null,
+        });
+      } catch (err) {
+        cb.checked = !cb.checked;
+        alert('Nie udało się zapisać statusu wypłaty.');
+      }
+    });
+  });
+}
+
+// ---------- users ----------
+function renderUsers() {
+  document.getElementById('usersList').innerHTML = usersCache.map(u => `
+    <div class="user-row">
+      <div>
+        <div class="name">${esc(u.displayName || u.email)}</div>
+        <div class="email">${esc(u.email)}</div>
+      </div>
+      ${u.uid === currentUser.uid
+        ? '<span class="who">(Ty)</span>'
+        : `<button class="btn-danger btn-sm" data-delete-user="${u.uid}">Usuń</button>`}
+    </div>
+  `).join('');
+  document.querySelectorAll('[data-delete-user]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Usunąć to konto? Historia wpisów tej osoby zostanie zachowana.')) return;
+      btn.disabled = true;
+      try {
+        await functionsApi.httpsCallable('deleteUser')({ uid: btn.dataset.deleteUser });
+      } catch (err) {
+        alert('Nie udało się usunąć konta: ' + (err.message || err));
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+function checkPasswordRules(pass) {
+  const rules = {
+    len: pass.length >= 10,
+    upper: /[A-Z]/.test(pass),
+    digit: /[0-9]/.test(pass),
+    special: /[^A-Za-z0-9]/.test(pass),
+  };
+  document.getElementById('pw-len').innerHTML = (rules.len ? '<span class="hint-ok">✓</span>' : '✗') + ' min. 10 znaków';
+  document.getElementById('pw-upper').innerHTML = (rules.upper ? '<span class="hint-ok">✓</span>' : '✗') + ' wielka litera';
+  document.getElementById('pw-digit').innerHTML = (rules.digit ? '<span class="hint-ok">✓</span>' : '✗') + ' cyfra';
+  document.getElementById('pw-special').innerHTML = (rules.special ? '<span class="hint-ok">✓</span>' : '✗') + ' znak specjalny';
+  return rules.len && rules.upper && rules.digit && rules.special;
+}
+document.getElementById('newUserPassword').addEventListener('input', (e) => checkPasswordRules(e.target.value));
+
+document.getElementById('addUserForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('addUserError');
+  errEl.textContent = '';
+  const displayName = document.getElementById('newUserName').value.trim();
+  const email = document.getElementById('newUserEmail').value.trim();
+  const password = document.getElementById('newUserPassword').value;
+  if (!checkPasswordRules(password)) {
+    errEl.textContent = 'Hasło nie spełnia wymogów.';
+    return;
+  }
+  const submitBtn = e.target.querySelector('button[type=submit]');
+  submitBtn.disabled = true;
+  try {
+    await functionsApi.httpsCallable('createUser')({ email, password, displayName });
+    e.target.reset();
+    checkPasswordRules('');
+  } catch (err) {
+    errEl.textContent = err.message || 'Nie udało się dodać użytkownika.';
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
