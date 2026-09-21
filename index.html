@@ -145,7 +145,6 @@
     display: flex;
     flex-direction: column;
     gap: 1px;
-    cursor: pointer;
     background: #fafbfc;
     min-height: 46px;
   }
@@ -154,7 +153,6 @@
   .cal-day.has-entry { background: #eaf1ff; border-color: #c7d9fb; }
   .cal-day .d-num { font-weight: 600; }
   .cal-day .d-hours { font-size: 9px; line-height: 1.25; color: var(--accent-dark); font-weight: 600; word-break: break-word; }
-  .cal-day.selected { outline: 2px solid var(--accent); }
 
   .day-detail-list { display: flex; flex-direction: column; gap: 8px; }
   .entry-row {
@@ -299,10 +297,6 @@
     <div class="card">
       <div style="font-weight:600; margin-bottom:10px;" id="monthListTitle">Wyjazdy w tym miesiącu</div>
       <div class="day-detail-list" id="monthListBody"></div>
-    </div>
-    <div class="card" id="dayDetailCard" style="display:none;">
-      <div id="dayDetailTitle" style="font-weight:600; margin-bottom:10px;"></div>
-      <div class="day-detail-list" id="dayDetailList"></div>
     </div>
   </section>
 
@@ -474,7 +468,6 @@ let podsumowaniaCache = {}; // miesiac -> {wyplacono}
 let usersCache = [];
 let unsubWpisy = null, unsubPodsumowania = null, unsubUsers = null;
 let calYear, calMonth; // 0-11
-let selectedDayStr = null;
 let editingEntryId = null;
 
 // ---------- auth ----------
@@ -520,7 +513,6 @@ function startListeners() {
       renderMonthList();
       renderRozliczenia();
       renderStatystyki();
-      if (selectedDayStr) renderDayDetail(selectedDayStr);
     }, err => console.error('wpisy listener', err));
 
   unsubPodsumowania = db.collection('podsumowania').where('uid', '==', currentUser.uid)
@@ -595,48 +587,12 @@ function renderCalendar() {
     if (isOut) classes.push('out');
     if (dStr === todayStr) classes.push('today');
     if (entries.length) classes.push('has-entry');
-    if (dStr === selectedDayStr) classes.push('selected');
     html += `<div class="${classes.join(' ')}" data-date="${dStr}">
       <div class="d-num">${d.getDate()}</div>
       ${dayLabels.map(l => `<div class="d-hours">${l}</div>`).join('')}
     </div>`;
   }
   document.getElementById('calGrid').innerHTML = html;
-  document.querySelectorAll('.cal-day').forEach(el => {
-    el.addEventListener('click', () => {
-      selectedDayStr = el.dataset.date;
-      renderCalendar();
-      renderDayDetail(selectedDayStr);
-    });
-  });
-}
-
-function renderDayDetail(dStr) {
-  const card = document.getElementById('dayDetailCard');
-  const entries = entriesForDay(dStr);
-  if (!entries.length) {
-    card.style.display = 'none';
-    return;
-  }
-  card.style.display = '';
-  const d = new Date(dStr + 'T00:00:00');
-  document.getElementById('dayDetailTitle').textContent = d.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  document.getElementById('dayDetailList').innerHTML = entries.map(w => {
-    const s = w.start.toDate(), e = w.koniec.toDate();
-    const fmt = dt => dt.toLocaleString('pl-PL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
-    return `<div class="entry-row">
-      <div>
-        <div class="opis">${esc(w.opis)}</div>
-        <div class="meta">${fmt(s)} → ${fmt(e)} · ${w.godziny} h × ${fmtMoney(w.stawka)}/h = ${fmtMoney(w.kwota)}</div>
-      </div>
-      <div class="entry-actions">
-        <button class="btn-secondary btn-sm" data-edit="${w.id}">Edytuj</button>
-      </div>
-    </div>`;
-  }).join('');
-  document.querySelectorAll('[data-edit]').forEach(btn => {
-    btn.addEventListener('click', () => openEntryModal(btn.dataset.edit));
-  });
 }
 
 // Stała, tekstowa lista wszystkich wyjazdów w aktualnie wyświetlanym
