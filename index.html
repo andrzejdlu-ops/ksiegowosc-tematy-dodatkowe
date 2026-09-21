@@ -771,6 +771,10 @@ function openEntryModal(entryId) {
   } else {
     document.getElementById('entryModalTitle').textContent = 'Dodaj wyjazd/zadanie';
     deleteBtn.style.display = 'none';
+    try {
+      const lastStawka = localStorage.getItem('lastStawka');
+      if (lastStawka) document.getElementById('entryStawka').value = lastStawka;
+    } catch (err) { /* localStorage niedostępny - pomijamy podpowiedź */ }
   }
   document.getElementById('entryModalBackdrop').classList.remove('hidden');
 }
@@ -808,6 +812,7 @@ document.getElementById('entryForm').addEventListener('submit', async (e) => {
       payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       await db.collection('wpisy').add(payload);
     }
+    try { localStorage.setItem('lastStawka', computed.stawka); } catch (err) { /* pomijamy */ }
     closeEntryModal();
   } catch (err) {
     errEl.textContent = 'Nie udało się zapisać wpisu.';
