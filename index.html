@@ -224,6 +224,23 @@
 
   .empty-msg { color: var(--muted); font-size: 14px; text-align: center; padding: 20px 0; }
   .top-actions { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+
+  /* --- Statystyki --- */
+  .stat-section-title { font-weight: 600; margin-bottom: 10px; }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+  }
+  .stat-tile {
+    background: #fafbfc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .stat-tile .stat-label { font-size: 12px; color: var(--muted); }
+  .stat-tile .stat-value { font-size: 22px; font-weight: 600; color: var(--text); margin-top: 4px; }
+  .stat-tile .stat-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
 </style>
 </head>
 <body>
@@ -261,6 +278,7 @@
   <nav>
     <button data-tab="kalendarz" class="active">Kalendarz</button>
     <button data-tab="rozliczenia">Rozliczenia</button>
+    <button data-tab="statystyki">Statystyki</button>
     <button data-tab="uzytkownicy">Użytkownicy</button>
   </nav>
 
@@ -276,6 +294,10 @@
       </div>
       <div class="cal-grid" id="calDow"></div>
       <div class="cal-grid" id="calGrid" style="margin-top:4px;"></div>
+    </div>
+    <div class="card">
+      <div style="font-weight:600; margin-bottom:10px;" id="monthListTitle">Wyjazdy w tym miesiącu</div>
+      <div class="day-detail-list" id="monthListBody"></div>
     </div>
     <div class="card" id="dayDetailCard" style="display:none;">
       <div id="dayDetailTitle" style="font-weight:600; margin-bottom:10px;"></div>
@@ -293,6 +315,62 @@
       </table>
       <div class="empty-msg hidden" id="rozliczeniaEmpty">Brak wpisów.</div>
     </div>
+  </section>
+
+  <section id="tab-statystyki" class="hidden">
+    <div class="card">
+      <div class="stat-section-title">Ogółem</div>
+      <div class="stat-grid">
+        <div class="stat-tile">
+          <div class="stat-label">Liczba wyjazdów</div>
+          <div class="stat-value" id="stat-count">–</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">Średnio godzin na wyjazd</div>
+          <div class="stat-value" id="stat-avg">–</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">Najdłuższy wyjazd</div>
+          <div class="stat-value" id="stat-longest">–</div>
+          <div class="stat-sub" id="stat-longest-sub"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="stat-section-title">Godziny przepracowane</div>
+      <div class="stat-grid">
+        <div class="stat-tile">
+          <div class="stat-label">Ten miesiąc</div>
+          <div class="stat-value" id="stat-hours-month">–</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">Ten rok</div>
+          <div class="stat-value" id="stat-hours-year">–</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">Od początku</div>
+          <div class="stat-value" id="stat-hours-total">–</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="stat-section-title">Zarobiono</div>
+      <div class="stat-grid">
+        <div class="stat-tile">
+          <div class="stat-label">Ten miesiąc</div>
+          <div class="stat-value" id="stat-money-month">–</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">Ten rok</div>
+          <div class="stat-value" id="stat-money-year">–</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-label">Od początku</div>
+          <div class="stat-value" id="stat-money-total">–</div>
+        </div>
+      </div>
+    </div>
+    <div class="empty-msg hidden" id="statystykiEmpty">Brak wpisów.</div>
   </section>
 
   <section id="tab-uzytkownicy" class="hidden">
@@ -449,7 +527,9 @@ function startListeners() {
     .onSnapshot(snap => {
       wpisyCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       renderCalendar();
+      renderMonthList();
       renderRozliczenia();
+      renderStatystyki();
       if (selectedDayStr) renderDayDetail(selectedDayStr);
     }, err => console.error('wpisy listener', err));
 
@@ -471,7 +551,7 @@ document.querySelectorAll('nav button').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    ['kalendarz', 'rozliczenia', 'uzytkownicy'].forEach(t => {
+    ['kalendarz', 'rozliczenia', 'statystyki', 'uzytkownicy'].forEach(t => {
       document.getElementById('tab-' + t).classList.toggle('hidden', t !== btn.dataset.tab);
     });
   });
@@ -569,13 +649,49 @@ function renderDayDetail(dStr) {
   });
 }
 
+// Stała, tekstowa lista wszystkich wyjazdów w aktualnie wyświetlanym
+// miesiącu kalendarza (nie wymaga klikania w konkretny dzień).
+function renderMonthList() {
+  const mKey = `${calYear}-${String(calMonth + 1).padStart(2, '0')}`;
+  document.getElementById('monthListTitle').textContent = `Wyjazdy w miesiącu: ${MONTH_NAMES[calMonth]} ${calYear}`;
+  const entries = wpisyCache
+    .filter(w => w.miesiac === mKey)
+    .sort((a, b) => a.start.toDate() - b.start.toDate());
+  const body = document.getElementById('monthListBody');
+  if (!entries.length) {
+    body.innerHTML = '<div class="empty-msg">Brak wyjazdów w tym miesiącu.</div>';
+    return;
+  }
+  body.innerHTML = entries.map(w => {
+    const s = w.start.toDate(), e = w.koniec.toDate();
+    const sameDay = dateStr(s) === dateStr(e);
+    const dateLabel = sameDay
+      ? s.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })
+      : `${s.toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' })}–${e.toLocaleDateString('pl-PL', { day: 'numeric', month: 'numeric' })}`;
+    return `<div class="entry-row">
+      <div>
+        <div class="opis">${esc(w.opis)}</div>
+        <div class="meta">${dateLabel} · ${fmtTime(s)}–${fmtTime(e)} · ${w.godziny} h × ${fmtMoney(w.stawka)}/h = ${fmtMoney(w.kwota)}</div>
+      </div>
+      <div class="entry-actions">
+        <button class="btn-secondary btn-sm" data-edit-month="${w.id}">Edytuj</button>
+      </div>
+    </div>`;
+  }).join('');
+  body.querySelectorAll('[data-edit-month]').forEach(btn => {
+    btn.addEventListener('click', () => openEntryModal(btn.dataset.editMonth));
+  });
+}
+
 document.getElementById('prevMonthBtn').addEventListener('click', () => {
   calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; }
   renderCalendar();
+  renderMonthList();
 });
 document.getElementById('nextMonthBtn').addEventListener('click', () => {
   calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; }
   renderCalendar();
+  renderMonthList();
 });
 
 // ---------- entry modal ----------
@@ -721,6 +837,47 @@ function renderRozliczenia() {
       }
     });
   });
+}
+
+// ---------- statystyki ----------
+function renderStatystyki() {
+  const ids = ['stat-count', 'stat-avg', 'stat-longest', 'stat-hours-month', 'stat-hours-year',
+    'stat-hours-total', 'stat-money-month', 'stat-money-year', 'stat-money-total'];
+  document.getElementById('statystykiEmpty').classList.toggle('hidden', wpisyCache.length > 0);
+
+  if (!wpisyCache.length) {
+    ids.forEach(id => document.getElementById(id).textContent = '–');
+    document.getElementById('stat-longest-sub').textContent = '';
+    return;
+  }
+
+  const now = new Date();
+  const curMonthKey = monthKey(now);
+  const curYear = String(now.getFullYear());
+  const inMonth = w => w.miesiac === curMonthKey;
+  const inYear = w => w.miesiac.startsWith(curYear);
+  const sumGodziny = arr => arr.reduce((s, w) => s + (w.godziny || 0), 0);
+  const sumKwota = arr => arr.reduce((s, w) => s + (w.kwota || 0), 0);
+  const round2 = n => Math.round(n * 100) / 100;
+
+  const count = wpisyCache.length;
+  const totalHours = sumGodziny(wpisyCache);
+  const totalMoney = sumKwota(wpisyCache);
+  const longest = wpisyCache.reduce((max, w) => (w.godziny || 0) > (max.godziny || 0) ? w : max, wpisyCache[0]);
+
+  document.getElementById('stat-count').textContent = count;
+  document.getElementById('stat-avg').textContent = `${round2(totalHours / count)} h`;
+  document.getElementById('stat-longest').textContent = `${round2(longest.godziny || 0)} h`;
+  document.getElementById('stat-longest-sub').textContent =
+    `${longest.opis} · ${longest.start.toDate().toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+
+  document.getElementById('stat-hours-month').textContent = `${round2(sumGodziny(wpisyCache.filter(inMonth)))} h`;
+  document.getElementById('stat-hours-year').textContent = `${round2(sumGodziny(wpisyCache.filter(inYear)))} h`;
+  document.getElementById('stat-hours-total').textContent = `${round2(totalHours)} h`;
+
+  document.getElementById('stat-money-month').textContent = fmtMoney(sumKwota(wpisyCache.filter(inMonth)));
+  document.getElementById('stat-money-year').textContent = fmtMoney(sumKwota(wpisyCache.filter(inYear)));
+  document.getElementById('stat-money-total').textContent = fmtMoney(totalMoney);
 }
 
 // ---------- users ----------
