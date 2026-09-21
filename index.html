@@ -412,7 +412,19 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 });
 document.getElementById('logoutBtn').addEventListener('click', () => auth.signOut());
 
-auth.onAuthStateChanged(user => {
+async function ensureUserDoc(user) {
+  const ref = db.collection('users').doc(user.uid);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    await ref.set({
+      email: user.email,
+      displayName: user.email.split('@')[0],
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+}
+
+auth.onAuthStateChanged(async user => {
   if (user) {
     currentUser = user;
     document.getElementById('loginScreen').classList.add('hidden');
@@ -420,6 +432,7 @@ auth.onAuthStateChanged(user => {
     document.getElementById('whoAmI').textContent = user.email;
     const now = new Date();
     calYear = now.getFullYear(); calMonth = now.getMonth();
+    try { await ensureUserDoc(user); } catch (err) { console.error('ensureUserDoc', err); }
     startListeners();
   } else {
     currentUser = null;
